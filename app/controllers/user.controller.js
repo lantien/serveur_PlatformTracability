@@ -58,6 +58,20 @@ exports.findAll = (req, res) => {
 
 };
 
+exports.makeAdmin = (req, res) => {
+
+  User.findByIdAndUpdate(req.params.userId,  {
+    admin: req.body.admin
+  }, {new : true})
+  .then(data => {
+    res.send(data);
+  }).catch(err => {
+    res.status(500).send({
+        message: err.message || "Some error occurred while making user admin."
+    });
+  });
+};
+
 //Return a user find by ObjectId
 exports.findOne = (req, res) => {
 
@@ -83,6 +97,15 @@ exports.findOne = (req, res) => {
 
 //Update un utilisateur
 exports.update = (req, res) => {
+
+    //check right si pas mon compte et pas admin rejette
+    if(req.decoded.userID != req.params.userId
+      && req.decoded.admin == false)
+    {
+      return res.status(404).send({
+          message: "You don't have right"
+      });
+    }
 
     // Validate request
     if(!req.body.nom || !req.body.login ||
@@ -127,6 +150,16 @@ exports.update = (req, res) => {
 
 //Supprime un utilisateur
 exports.delete = (req, res) => {
+
+    //check right si pas mon compte et pas admin rejette
+    if(req.decoded.userID != req.params.userId
+      && req.decoded.admin == false)
+    {
+      return res.status(404).send({
+          message: "You don't have right"
+      });
+    }
+
     User.findByIdAndRemove(req.params.userId)
     .then(user => {
       if(!user) {
@@ -168,7 +201,8 @@ exports.login = (req, res) => {
         }, 'shhhhh');
               	res.send({
                       tokenJSON :token,
-                      userID: user.get("_id")
+                      userID: user.get("_id"),
+                      admin: user.get("admin")
                     });
       	} else {
       		return res.status(404).send({

@@ -16,6 +16,11 @@ module.exports = (app) => {
   //Supprime un groupe
   app.delete('/api/groupe/:groupeId', groupe.delete);
 
+  //Renvoie les groupes d'un userID
+  app.get('/api/groupe/get/:userId', groupe.groupeList);
+
+  //Change droit groupe
+  app.post('/api/groupe/droit', groupe.changeRight);
 
   //Ajoute un userID au groupe
   app.post('/api/groupe/add/', groupe.add);

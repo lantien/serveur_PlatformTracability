@@ -15,6 +15,9 @@ exports.create = (req, res) => {
         });
     }*/
 
+    req.body.is_hs = false;
+    req.body.is_part_hs = false;
+
     // Create a Appareil
     const appareil = new Appareil(req.body);
 
@@ -85,7 +88,7 @@ exports.uploadImage = (req, res) => {
 
     // once all the files have been uploaded, send a response to the client
     form.on('end', function() {
-      res.end('success');
+      res.send({message: "Appareil image uploaded successfully!"});
     });
 
     // parse the incoming request containing the form data
@@ -120,9 +123,9 @@ exports.update = (req, res) => {
     }
 
     // Find note and update it with the request body
-    Appareil.findByIdAndUpdate(req.params.appareilsId, {
-        nom: req.body.nom
-    }, {new: true})
+    Appareil.findByIdAndUpdate(req.params.appareilsId,
+        req.body
+    , {new: true})
     .then(appareil => {
         if(!appareil) {
             return res.status(404).send({
@@ -152,6 +155,13 @@ exports.delete = (req, res) => {
                 message: "Appareil not found with id (!appareil)" + req.params.appareilsId
             });
         }
+
+        var filePath = './uploads/' + req.params.appareilsId;
+
+        if(fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
         res.send({message: "Appareil deleted successfully!"});
     }).catch(err => {
         if(err.kind === 'ObjectId' || err.name === 'NotFound') {
@@ -259,4 +269,60 @@ exports.findByGrp = (req, res) => {
           message: "Error updating note with id " + req.body.appId
       });
   });
+};
+
+
+// Update a note identified by the noteId in the request
+exports.setState = (req, res) => {
+
+    // Validate Request
+    if(!req.body.appId || !req.body.state) {
+        return res.status(400).send({
+            message: "Change state need ID and new state"
+        });
+    }
+
+    var newState;
+
+    if(req.body.state == 1) {
+      newState = {
+        is_hs: true,
+        is_part_hs: false,
+        report:req.body.report
+      }
+    } else if(req.body.state == 2) {
+      newState = {
+        is_hs: false,
+        is_part_hs: true,
+        report:req.body.report
+      }
+    } else  {
+      newState = {
+        is_hs: false,
+        is_part_hs: false,
+        report:req.body.report
+      }
+    }
+
+    // Find note and update it with the request body
+    Appareil.findByIdAndUpdate(req.body.appId,
+        newState
+    , {new: true})
+    .then(appareil => {
+        if(!appareil) {
+            return res.status(404).send({
+                message: "Appareil not found with id " + req.body.appId
+            });
+        }
+        res.send(appareil);
+    }).catch(err => {
+        if(err.kind === 'ObjectId') {
+            return res.status(404).send({
+                message: "Appareil not found with id " + req.body.appId
+            });
+        }
+        return res.status(500).send({
+            message: "Error updating note with id " + req.body.appId
+        });
+    });
 };

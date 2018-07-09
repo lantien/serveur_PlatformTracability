@@ -113,18 +113,26 @@ app.use('/api', apiRoutes);
 
 	    // verifies secret and checks exp
 	    jwt.verify(token, 'shhhhh', function(err, decoded) {
+
 	      if (err) {
-	        return res.json({ success: false, message: 'Failed to authenticate token.' });
-	      } else if(decoded.admin == 'true'){
+	        //return res.json({ success: false, message: 'Failed to authenticate token.' });
+          return res.status(400).send({
+              message: 'Failed to authenticate token.'
+          });
+	      } else if(decoded.admin == true){
 	        // if everything is good, save to request for use in other routes
 	        req.decoded = decoded;
 	        next();
-	      } else if(decoded.admin == 'false') {
+	      } else if(decoded.admin == false) {
 
-					return res.json({ success: false, message: 'You need an admin token.' });
+          return res.status(400).send({
+              message: 'You need an admin token.'
+          });
 				} else {
 
-					return res.json({ success: false, message: 'Unknown authentification error' });
+          return res.status(400).send({
+              message: 'Unknown error.'
+          });
 				}
 	    });
 
@@ -140,7 +148,7 @@ app.use('/api', apiRoutes);
 	  }
 	});
 
-	app.use('/api/admin', adminRoutes);
+	app.use('/admin', adminRoutes);
 //////////////////////////
 require('./app/routes/appareils.route.js')(app);
 require('./app/routes/user.route.js')(app);
@@ -148,6 +156,7 @@ require('./app/routes/emprunt.route.js')(app);
 require('./app/routes/projets.route.js')(app);
 require('./app/routes/laboratoire.route.js')(app);
 require('./app/routes/groupe.route.js')(app);
+require('./app/routes/incident.route.js')(app);
 
 var httpsServer = https.createServer(credentials, app);
 

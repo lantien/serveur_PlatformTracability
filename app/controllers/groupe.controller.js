@@ -12,7 +12,9 @@ exports.create = (req, res) => {
     }
 
     const groupe = Groupe({
-      nom: req.body.nom
+      nom: req.body.nom,
+      creator: req.decoded.userID,
+      groupeList: [req.decoded.userID]
     });
 
     groupe.save()
@@ -61,7 +63,7 @@ exports.findOne = (req, res) => {
     });
 };
 
-//Ecrase un groupe avec celui recu
+
 exports.update = (req, res) => {
 
     //request validation
@@ -71,7 +73,14 @@ exports.update = (req, res) => {
       });
     }
 
-    Groupe.findByIdAndUpdate(req.params.groupeId, {
+    Groupe.findOneAndUpdate({
+      _id: req.params.groupeId,
+      $or :[
+        {creator: req.decoded.userID},
+        {[req.decoded.userID] : 'admin'},
+        {[req.decoded.userID] : 'gestionnaire'}
+      ]
+    }, {
       nom: req.body.nom
     }, {new: true})
     .then(grp => {
@@ -80,28 +89,44 @@ exports.update = (req, res) => {
             message: "Il semble de que ce groupe n'existe pas :" + req.params.groupeId
         });
       }
+
       res.send(grp);
     }).catch(err => {
         if(err.kind === 'ObjectId') {
           return res.status(404).send({
-              message: "Il semble de que ce groupe n'existe pas :" + req.params.groupeId
+              message: "Il semble que vous n'ayez pas ce droit"
           });
         }
         return res.status(500).send({
             message: "Une erreur est survenue"
         });
     });
+};
 
+//Renvoie les groupes dans userID
+exports.groupeList = (req, res) => {
+
+    Groupe.find({groupeList: req.params.userId})
+    .then(data => {
+      res.send(data);
+    }).catch(err => {
+        return res.status(500).send({
+            message: "Une erreur est survenue"
+        });
+    });
 };
 
 //Supprime un groupe
 exports.delete = (req, res) => {
 
-    Groupe.findByIdAndRemove(req.params.groupeId)
+    Groupe.findOneAndDelete({
+      _id: req.params.groupeId,
+      creator: req.decoded.userID
+    })
     .then(grp => {
       if(!grp) {
         return res.status(404).send({
-            message: "Il semble de que ce groupe n'existe pas :" + req.params.groupeId
+            message: "Il semble que vous n'ayez pas ce droit"
         });
 
       }
@@ -144,6 +169,42 @@ exports.delete = (req, res) => {
     });
 };
 
+exports.changeRight = (req, res) => {
+
+    //request validation
+    if(!req.body.groupeId || !req.body.userId || !req.body.role) {
+      return res.status(400).send({
+        message: "Il faut le groupeId et le userId"
+      });
+    }
+
+    Groupe.findOneAndUpdate({
+      _id: req.body.groupeId,
+      $or :[{creator: req.decoded.userID}, {[req.decoded.userID] : 'admin'}]
+    },{
+      [req.body.userId] : req.body.role
+    }, {new : true})
+    .then(data => {
+      if(!data) {
+        return res.status(404).send({
+            message: "Il semble de que ce groupe n'existe pas :" + req.body.groupeId
+        });
+      }
+
+      res.send(data);
+    }).catch(err => {
+        if(err.kind === 'ObjectId') {
+          return res.status(404).send({
+              message: "Il semble que vous n'ayez pas ce droit"
+          });
+        }
+        return res.status(500).send({
+            message: "Une erreur est survenue : " + err
+        });
+    });
+
+};
+
 //ajoute un id au groupe
 exports.add = (req, res) => {
 
@@ -154,7 +215,14 @@ exports.add = (req, res) => {
     });
   }
 
-  Groupe.findByIdAndUpdate(req.body.groupeId, {
+  Groupe.findOneAndUpdate({
+    _id: req.body.groupeId,
+    $or :[
+      {creator: req.decoded.userID},
+      {[req.decoded.userID] : 'admin'},
+      {[req.decoded.userID] : 'gestionnaire'}
+    ]
+  }, {
     $addToSet: { groupeList: req.body.userId }
   }, {new: true})
   .then(grp => {
@@ -167,7 +235,7 @@ exports.add = (req, res) => {
   }).catch(err => {
       if(err.kind === 'ObjectId') {
         return res.status(404).send({
-            message: "Il semble de que ce groupe n'existe pas :" + req.body.groupeId
+            message: "Il semble que vous n'ayez pas ce droit"
         });
       }
       return res.status(500).send({
@@ -185,20 +253,49 @@ exports.remove = (req, res) => {
     });
   }
 
-  Groupe.findByIdAndUpdate(req.body.groupeId, {
-    $pull: { groupeList: req.body.userId }
-  }, {new: true})
-  .then(grp => {
+  if(req.body.userId == req.decoded.userID) {
+    var promise = new Promise(function(resolve, reject) {
+      Groupe.findByIdAndUpdate(req.body.groupeId,
+        {
+          $pull: {groupeList: req.body.userId},
+          [req.body.userId] : undefined
+      }
+      ).then(function (data){
+        resolve(data);
+      });
+    });
+  } else {
+    var promise = new Promise(function(resolve, reject) {
+      Groupe.findOneAndUpdate({
+        _id: req.body.groupeId,
+        $or :[
+          {creator: req.decoded.userID},
+          {[req.decoded.userID] : 'admin'},
+          {[req.decoded.userID] : 'gestionnaire'}
+        ]
+      },
+        {
+          $pull: { groupeList: req.body.userId },
+          [req.body.userId] : undefined
+      })
+      .then(function (data){
+        resolve(data);
+      });
+    });
+  }
+
+  promise.then(grp => {
     if(!grp) {
       return res.status(404).send({
           message: "Il semble de que ce groupe n'existe pas :" + req.body.groupeId
       });
     }
     res.send(grp);
-  }).catch(err => {
+  })
+  .catch(err => {
       if(err.kind === 'ObjectId') {
         return res.status(404).send({
-            message: "Il semble de que ce groupe n'existe pas :" + req.body.groupeId
+            message: "Il semble que vous n'ayez pas ce droit"
         });
       }
       return res.status(500).send({

@@ -10,7 +10,8 @@ const EmpruntSchema = mongoose.Schema({
   longitude_rendu: Number,
   latitude_rendu: Number,
   projetID: String,
-  is_incident: Boolean
+  is_incident: Boolean,
+  incident_id: String
 }, {
     timestamps: true
 });

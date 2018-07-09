@@ -13,6 +13,9 @@ module.exports = (app) => {
     //Met a jour les infos d'un utilisateur
     app.put('/api/users/:userId', users.update);
 
+    //Met a jour les infos d'un utilisateur
+    app.put('/admin/makeAdminUser/:userId', users.makeAdmin);
+
     //Supprime un utilisateur
     app.delete('/api/users/:userId', users.delete);
 
